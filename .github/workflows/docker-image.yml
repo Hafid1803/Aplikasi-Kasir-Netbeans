@@ -1,0 +1,50 @@
+name: ci
+
+on:
+  push:
+    branches: [ "main" ]        # jalankan setiap push ke main
+  pull_request:
+    branches: [ "main" ]
+
+jobs:
+  build-test-push:
+    runs-on: ubuntu-latest
+
+    steps:
+    # 1. Checkout kode
+    - name: Checkout repository
+      uses: actions/checkout@v4
+
+    # 2. Setup Java (ganti versi bila perlu)
+    - name: Set up JDK 21
+      uses: actions/setup-java@v4
+      with:
+        distribution: temurin
+        java-version: "21"
+        cache: maven            # atau gradle, tergantung build tool
+
+    # 3. Build & unit test
+    - name: Build with Maven
+      run: mvn -B test package
+
+    # 4. Login ke Docker Hub
+    - name: Login to Docker Hub
+      uses: docker/login-action@v3
+      with:
+        username: ${{ vars.DOCKER_USERNAME }}
+        password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+    # 5. (Opsional) Set-up Buildx untuk build multi-platform & cache
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v3
+
+    # 6. Build & Push image
+    - name: Build and Push
+      uses: docker/build-push-action@v6
+      with:
+        context: .
+        platforms: linux/amd64,linux/arm64             # hapus baris ini jika tidak butuh multi-arch
+        push: true
+        tags: ${{ vars.DOCKER_USERNAME }}/${{ github.event.repository.name }}:latest
+        cache-from: type=gha                           # cache di GitHub Actions
+        cache-to: type=gha,mode=max
