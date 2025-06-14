@@ -7,8 +7,13 @@ RUN mvn install:install-file -Dfile=library/mysql-connector-java-5.1.23-bin.jar 
 
 RUN mvn clean package -DskipTests
 
-FROM eclipse-temurin:17-jre AS runtime
+FROM eclipse-temurin:17-jre
 WORKDIR /app
-COPY --from=build /app/target/*.jar /app/app.jar
-CMD ["java", "-cp", "/app/app.jar", "kasir.Kasir"]
 
+# install X virtual framebuffer (Xvfb)
+RUN apt-get update && apt-get install -y xvfb && rm -rf /var/lib/apt/lists/*
+
+COPY --from=build /app/target/*.jar /app/app.jar
+
+# run headless using xvfb
+CMD ["xvfb-run", "-a", "java", "-cp", "/app/app.jar", "kasir.Kasir"]
